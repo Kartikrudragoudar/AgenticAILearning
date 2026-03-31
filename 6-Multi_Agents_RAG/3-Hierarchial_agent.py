@@ -1,5 +1,3 @@
-from transformers import ConvBertForMaskedLM
-from typing import Optional
 import os
 from typing_extensions import TypedDict, Annotated
 from langgraph.graph import StateGraph, MessagesState, START, END
@@ -15,7 +13,7 @@ from langchain.agents import create_agent
 from dotenv import load_dotenv
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List, Literal, Dict, Callable
+from typing import List, Literal, Dict, Callable, Optional
 from langchain_groq import ChatGroq
 from langchain_tavily import TavilySearch
 from langchain_experimental.utilities import PythonREPL
