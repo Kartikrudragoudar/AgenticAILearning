@@ -117,20 +117,25 @@ doc_txt = docs[1].page_content
 
 
 #Generate
+# Pulls a standard RAG prompt template from the LangChain Hub
 prompt = hub.pull("rlm/rag-prompt")
 
 #Post-Processing
+# Utility function to merge retrieved document contents into a single string
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
 
 #Chain
+# Constructs the core RAG sequence: prompt + LLM + string parser
 rag_chain = prompt | llm | StrOutputParser()
 
 # Passes ONLY the text content of the retrieved snippets to stay under the token limit
+# Executes the RAG chain using the initial question and retrieved context
 generation = rag_chain.invoke({"context": format_docs(docs), "question": question})
 # print(generation)
 
+# Schema for binary hallucination checks (grounded or not)
 class GradeHallucinations(BaseModel):
     """Binary score for hallucination present in generation answer."""
 
@@ -149,6 +154,7 @@ hallucination_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
+# Chain to verify if the LLM generation is strictly supported by facts
 hallucination_grader = hallucination_prompt | Structured_llm_grader2
 hallucination_grader.invoke({
     "documents":format_docs(docs),
@@ -159,6 +165,7 @@ hallucination_grader.invoke({
 # Answer Grader
 
 #Data Model
+# Schema for binary answer quality checks (addresses question or not)
 class GradeAnswer(BaseModel):
     """Binary score to assess answer to addresses question."""
 
@@ -178,6 +185,7 @@ answer_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
+# Chain to verify if the final answer actually resolves the user's query
 answer_grader = answer_prompt | Structured_llm_grader3
 answer_grader.invoke({"question":question, "generation":generation})
 
@@ -195,11 +203,14 @@ re_write_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
+# Chain to optimize search queries for better vectorstore retrieval
 question_rewriter = re_write_prompt | llm | StrOutputParser()
 # print(question_rewriter.invoke({"question":question}))
 
+# External search tool for fallbacks when vectorstore data is insufficient
 web_search_tool = TavilySearch(k=3)
 
+# Defines the schema for data flowing through the LangGraph workflow
 class GraphState(TypedDict):
     """
     Represents the state of our state
@@ -214,6 +225,7 @@ class GraphState(TypedDict):
     documents: List[str]
 
 
+# Node for fetching relevant documents from the vectorstore retriever
 def retrieve(state):
     """
     Retrieve Documents
@@ -233,6 +245,7 @@ def retrieve(state):
     return {"documents": documents, "question":question}
 
 
+# Node for synthesizing an answer using the RAG chain and context
 def generate(state):
     """
     Generate Answer
@@ -251,6 +264,7 @@ def generate(state):
     generation = rag_chain.invoke({"context":format_docs(documents), "question":question})
     return {"generation":generation, "documents":documents, "question":question}
 
+# Node for filtering out documents that are not relevant to the query
 def grade_documents(state):
     """
     Determines whether the retieved documents are relevant to the question.
@@ -281,6 +295,7 @@ def grade_documents(state):
     
     return {"documents":filtered_docs, "question":question}
 
+# Node for re-phrasing the question to improve retrieval success
 def transform_query(state):
     """
     Transform the question to produce a better question.
@@ -300,6 +315,7 @@ def transform_query(state):
     better_question = question_rewriter.invoke({"question":question})
     return {"documents":documents, "question":better_question}
 
+# Node for performing a web search as a fallback datasource
 def web_search(state):
     """
         Web Search based on the re-phrased question
@@ -336,6 +352,7 @@ def web_search(state):
 
 
 #Edges
+# Router function to decide between vectorstore or web search
 def route_question(state):
     """
         Route question to web search or RAG.
@@ -357,6 +374,7 @@ def route_question(state):
         print("---ROUTE QUESTION TO RAG---")
         return "vectorstore"
 
+# Logical edge to decide between generation or query transformation
 def decide_to_generate(state):
     """
         Determines whether to generate an answer, or  re-generate a question.
@@ -383,6 +401,7 @@ def decide_to_generate(state):
         print("---DECISION: GENERATE ANSWER---")
         return "generate"
     
+# Final validation node to check for hallucinations and answer quality
 def grade_generation_v_documents_and_question(state):
     """
         Determines whether the generation is grounded in the document and answers question.
@@ -423,6 +442,7 @@ def grade_generation_v_documents_and_question(state):
         print("---DESCISION: GENERATION NOT GROUNDED IN DOCUMENTS, RE-TRY---")
         return "not supported"
 
+# Initializes and configures the individual nodes of the task graph
 workflow = StateGraph(GraphState)
 workflow.add_node("web_search", web_search)
 workflow.add_node("retrieve", retrieve)
@@ -430,6 +450,7 @@ workflow.add_node("grade_documents", grade_documents)
 workflow.add_node("generate", generate)
 workflow.add_node("transform_query", transform_query)
 
+# Router logic determining whether to start with vectorstore retrieval or web search
 workflow.add_conditional_edges(
     START,
     route_question,
@@ -438,8 +459,10 @@ workflow.add_conditional_edges(
         "vectorstore":"retrieve",
     }
 )
+# Linear transitions: from search to generation and retrieval to document grading
 workflow.add_edge("web_search", 'generate')
 workflow.add_edge("retrieve", "grade_documents")
+# Validation logic choosing between answer generation or query transformation after document check
 workflow.add_conditional_edges(
     "grade_documents",
     decide_to_generate,
@@ -449,6 +472,7 @@ workflow.add_conditional_edges(
     }
 )
 
+# Final logic choosing to loop back for repairs (not supported/not useful) or finish (useful)
 workflow.add_edge("transform_query", "retrieve")
 workflow.add_conditional_edges(
     "generate",
@@ -462,4 +486,4 @@ workflow.add_conditional_edges(
 
 app = workflow.compile()
 response = app.invoke({"question":"What is machine Learning"})
-print(response['generation'])
+print(response)
