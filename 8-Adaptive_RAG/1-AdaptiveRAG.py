@@ -1,4 +1,3 @@
-from typing import List
 import os
 from langgraph.graph import END, StateGraph, START
 from langchain_core.documents import Document
@@ -7,7 +6,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import WebBaseLoader
-from typing import Literal
+from typing import Literal, List
 from typing_extensions import TypedDict
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
