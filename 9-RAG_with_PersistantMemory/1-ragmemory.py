@@ -3,22 +3,18 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from typing_extensions import TypedDict
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import FAISS
-from langgraph.graph import END, StateGraph, START, MessagesState, StateGraph
+from langgraph.graph import END, StateGraph, MessagesState, StateGraph
 from langgraph.checkpoint.memory import MemorySaver # persistent memory (checkpointer) component
 from langchain_core.messages import SystemMessage
 from langgraph.prebuilt import ToolNode, tools_condition
-from langchain_classic import hub
-from langchain_core.tools import Tool, tool
+from langchain_core.tools import tool
 load_dotenv()
 
 os.environ["GROQ_API_KEY"]=os.getenv("GROQ_API_KEY")
 os.environ["TAVILY_API_KEY"]=os.getenv("TAVILY_API_KEY")
-os.environ["USER_AGENT"]="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 
 llm = ChatGroq(model="qwen/qwen3-32b")
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
