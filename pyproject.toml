@@ -18,6 +18,7 @@ dependencies = [
     "langgraph>=1.0.7",
     "langgraph-cli[inem,inmem]>=0.4.14",
     "langgraph-supervisor>=0.0.31",
+    "pandas>=3.0.2",
     "pymupdf>=1.27.2",
     "python-dotenv>=1.2.1",
     "sentence-transformers>=5.3.0",

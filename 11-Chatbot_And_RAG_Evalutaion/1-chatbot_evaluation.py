@@ -2,8 +2,6 @@ import os
 from dotenv import load_dotenv
 from langsmith.client import Client
 from langchain_groq import ChatGroq
-from langsmith import wrappers
-from groq import Groq
 load_dotenv()
 client = Client()
 
